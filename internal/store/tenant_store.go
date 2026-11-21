@@ -54,3 +54,50 @@ func (s *TenantStore) Get(id string) (*tenant.Tenant, error) {
 	tenantCopy := *t
 	return &tenantCopy, nil
 }
+
+func (s *TenantStore) ListAll() []*tenant.Tenant {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*tenant.Tenant
+
+	for _, t := range s.tenants {
+		tenantCopy := *t
+		result = append(result, &tenantCopy)
+	}
+
+	return result
+}
+
+// TryStartJob reserves one running slot if capacity is available.
+func (s *TenantStore) TryStartJob(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	t, exists := s.tenants[id]
+	if !exists {
+		return false
+	}
+
+	if t.Running >= t.MaxConcurrency {
+		return false
+	}
+
+	t.Running++
+	return true
+}
+
+// FinishJob releases one running slot.
+func (s *TenantStore) FinishJob(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	t, exists := s.tenants[id]
+	if !exists {
+		return
+	}
+
+	if t.Running > 0 {
+		t.Running--
+	}
+}

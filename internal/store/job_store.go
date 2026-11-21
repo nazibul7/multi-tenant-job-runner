@@ -67,3 +67,31 @@ func (s *JobStore) ListByTenant(tenantID string) []*job.Job {
 
 	return result
 }
+
+// ClaimNextQueued finds and claims one queued job.
+func (s *JobStore) ClaimNextQueued(tenantID string) *job.Job {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, j := range s.jobs {
+		if j.TenantID == tenantID && j.Status == job.JobQueued {
+			j.Status = job.JobRunning
+			return j
+		}
+	}
+
+	return nil
+}
+
+// SetStatus updates a job's status.
+func (s *JobStore) SetStatus(jobID string, status job.JobStatus) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	j, exists := s.jobs[jobID]
+	if !exists {
+		return
+	}
+
+	j.Status = status
+}

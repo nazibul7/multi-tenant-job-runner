@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
 	"github.com/nazibul7/multi-tenant-job-runner/internal/handler"
 	"github.com/nazibul7/multi-tenant-job-runner/internal/service"
+	scheduler "github.com/nazibul7/multi-tenant-job-runner/internal/sheduler"
 	"github.com/nazibul7/multi-tenant-job-runner/internal/store"
 )
 
@@ -18,6 +20,13 @@ func main() {
 
 	tenantHandler := handler.NewTenantHandler(tenantStore, tenantSerice)
 	jobHandler := handler.NewJobHandler(jobService)
+
+	scheduler := scheduler.NewScheduler(tenantStore, jobStore)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go scheduler.Run(ctx)
 
 	mux := http.NewServeMux()
 
