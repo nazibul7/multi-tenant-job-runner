@@ -1,8 +1,10 @@
-package tenant
+package store
 
 import (
 	"errors"
 	"sync"
+
+	"github.com/nazibul7/multi-tenant-job-runner/internal/tenant"
 )
 
 var (
@@ -11,18 +13,18 @@ var (
 	ErrInvalidTenant  = errors.New("invalid tenant configuration")
 )
 
-type Store struct {
+type TenantStore struct {
 	mu      sync.RWMutex
-	tenants map[string]*Tenant
+	tenants map[string]*tenant.Tenant
 }
 
-func NewStore() *Store {
-	return &Store{
-		tenants: make(map[string]*Tenant),
+func NewTenantStore() *TenantStore {
+	return &TenantStore{
+		tenants: make(map[string]*tenant.Tenant),
 	}
 }
 
-func (s *Store) Create(t Tenant) error {
+func (s *TenantStore) Create(t tenant.Tenant) error {
 	if t.ID == "" || t.Budget <= 0 || t.MaxConcurrency <= 0 {
 		return ErrInvalidTenant
 	}
@@ -39,7 +41,7 @@ func (s *Store) Create(t Tenant) error {
 	return nil
 }
 
-func (s *Store) Get(id string) (*Tenant, error) {
+func (s *TenantStore) Get(id string) (*tenant.Tenant, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -48,5 +50,7 @@ func (s *Store) Get(id string) (*Tenant, error) {
 		return nil, ErrTenantNotFound
 	}
 
-	return t, nil
+	// Return a copy to prevent external modification.
+	tenantCopy := *t
+	return &tenantCopy, nil
 }
