@@ -55,7 +55,11 @@ func (h *JobHandler) SubmitJob(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, job.ErrInvalidJob),
 			errors.Is(err, job.ErrEmptySteps),
 			errors.Is(err, job.ErrEmptyStepID),
-			errors.Is(err, job.ErrDuplicateStepID):
+			errors.Is(err, job.ErrDuplicateStepID),
+			errors.Is(err, job.ErrNilStep),
+			errors.Is(err, job.ErrUnknownDependency),
+			errors.Is(err, job.ErrSelfDependency),
+			errors.Is(err, job.ErrCircularDependency):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 
 		default:
