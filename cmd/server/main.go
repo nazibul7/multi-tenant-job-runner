@@ -24,7 +24,7 @@ func main() {
 
 	schedulerInstance := scheduler.NewScheduler(tenantStore, jobStore)
 
-	workerPool := worker.NewPool(5, schedulerInstance.Jobs(), jobStore, schedulerInstance)
+	workerPool := worker.NewPool(4, schedulerInstance.Jobs(), jobStore, schedulerInstance)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
