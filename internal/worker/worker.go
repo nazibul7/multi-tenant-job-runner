@@ -73,30 +73,66 @@ func (p *Pool) startWorker(ctx context.Context) {
 }
 
 // executeJob executes all steps of a job.
+
 func (p *Pool) executeJob(ctx context.Context, j *job.Job) {
-	// Always release the tenant slot when this job finishes.
 	defer p.scheduler.JobFinished(j.TenantID)
 
-	for i, step := range j.Steps {
-		if step == nil {
-			p.jobStore.SetStatus(j.ID, job.JobFailed)
-			return
-		}
+	completed := make(map[string]bool)
+	processed := make(map[string]bool)
 
-		if err := p.executeStep(ctx, j.ID, step); err != nil {
-			// Mark remaining steps as blocked.
-			for _, remaining := range j.Steps[i+1:] {
-				if remaining != nil {
-					_ = p.jobStore.UpdateStep(
-						j.ID,
-						remaining.ID,
-						job.StepBlocked,
-						0,
-						"previous step failed",
-					)
+	remaining := len(j.Steps)
+
+	for remaining > 0 {
+		progress := false
+
+		for _, step := range j.Steps {
+			if processed[step.ID] {
+				continue
+			}
+
+			// Check whether all dependencies succeeded.
+			dependenciesReady := true
+
+			for _, dependency := range step.DependsOn {
+				if !completed[dependency] {
+					dependenciesReady = false
+					break
 				}
 			}
 
+			if !dependenciesReady {
+				continue
+			}
+
+			progress = true
+
+			if err := p.executeStep(ctx, j.ID, step); err != nil {
+
+				processed[step.ID] = true // Don't overwrite the failed step.
+
+				for _, remainingStep := range j.Steps {
+					if remainingStep != nil && !processed[remainingStep.ID] {
+						_ = p.jobStore.UpdateStep(
+							j.ID,
+							remainingStep.ID,
+							job.StepBlocked,
+							0,
+							"previous step failed",
+						)
+					}
+				}
+
+				p.jobStore.SetStatus(j.ID, job.JobFailed)
+				return
+			}
+
+			completed[step.ID] = true
+			processed[step.ID] = true
+			remaining--
+		}
+
+		// No step was ready to execute.
+		if !progress {
 			p.jobStore.SetStatus(j.ID, job.JobFailed)
 			return
 		}
