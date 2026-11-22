@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"time"
 
 	"github.com/nazibul7/multi-tenant-job-runner/internal/job"
@@ -49,6 +50,17 @@ func (s *JobService) SubmitJob(tenantID string, j *job.Job) error {
 		return err
 	}
 
+	// Calculate total cost of all steps.
+	totalCost := 0
+
+	for _, step := range j.Steps {
+		if step.Cost < 0 {
+			return errors.New("step cost cannot be negative")
+		}
+
+		totalCost += step.Cost
+	}
+
 	// Initialize job.
 	j.Status = job.JobQueued
 	j.CreatedAt = time.Now().UTC()
@@ -60,8 +72,19 @@ func (s *JobService) SubmitJob(tenantID string, j *job.Job) error {
 		step.Error = ""
 	}
 
+	// Charge tenant budget.
+	if err := s.tenantStore.TryCharge(tenantID, totalCost); err != nil {
+		return err
+	}
+
 	// Save job.
-	return s.jobStore.Create(j)
+	if err := s.jobStore.Create(j); err != nil {
+		// Refund if saving the job fails.
+		s.tenantStore.Refund(tenantID, totalCost)
+		return err
+	}
+
+	return nil
 }
 
 func (s *JobService) GetJob(tenantID, jobID string) (*job.Job, error) {

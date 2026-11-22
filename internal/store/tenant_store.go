@@ -8,9 +8,11 @@ import (
 )
 
 var (
-	ErrTenantExists   = errors.New("tenant already exists")
-	ErrTenantNotFound = errors.New("tenant not found")
-	ErrInvalidTenant  = errors.New("invalid tenant configuration")
+	ErrTenantExists       = errors.New("tenant already exists")
+	ErrTenantNotFound     = errors.New("tenant not found")
+	ErrInvalidTenant      = errors.New("invalid tenant configuration")
+	ErrInsufficientBudget = errors.New("insufficient tenant budget")
+	ErrInvalidAmount      = errors.New("invalid step amount")
 )
 
 type TenantStore struct {
@@ -99,5 +101,49 @@ func (s *TenantStore) FinishJob(id string) {
 
 	if t.Running > 0 {
 		t.Running--
+	}
+}
+
+func (s *TenantStore) TryCharge(id string, amount int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	t, exists := s.tenants[id]
+	if !exists {
+		return ErrTenantNotFound
+	}
+
+	if amount < 0 {
+		return ErrInvalidAmount
+	}
+
+	remaining := t.Budget - t.Spent
+
+	if amount > remaining {
+		return ErrInsufficientBudget
+	}
+
+	t.Spent += amount
+
+	return nil
+}
+
+func (s *TenantStore) Refund(id string, amount int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	t, exists := s.tenants[id]
+	if !exists {
+		return
+	}
+
+	if amount <= 0 {
+		return
+	}
+
+	t.Spent -= amount
+
+	if t.Spent < 0 {
+		t.Spent = 0
 	}
 }
