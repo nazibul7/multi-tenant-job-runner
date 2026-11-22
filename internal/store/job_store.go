@@ -8,9 +8,10 @@ import (
 )
 
 var (
-	ErrJobNotFound = errors.New("job not found")
-	ErrJobExists   = errors.New("job already exists")
-	ErrInvalidJob  = errors.New("invalid job")
+	ErrJobNotFound  = errors.New("job not found")
+	ErrJobExists    = errors.New("job already exists")
+	ErrInvalidJob   = errors.New("invalid job")
+	ErrStepNotFound = errors.New("step not found")
 )
 
 type JobStore struct {
@@ -94,4 +95,26 @@ func (s *JobStore) SetStatus(jobID string, status job.JobStatus) {
 	}
 
 	j.Status = status
+}
+
+// UpdateStep updates the state of one step.
+func (s *JobStore) UpdateStep(jobID string, stepID string, status job.StepStatus, attempts int, errMsg string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	j, exists := s.jobs[jobID]
+	if !exists {
+		return ErrJobNotFound
+	}
+
+	for _, step := range j.Steps {
+		if step != nil && step.ID == stepID {
+			step.Status = status
+			step.Attempts = attempts
+			step.Error = errMsg
+			return nil
+		}
+	}
+
+	return ErrStepNotFound
 }

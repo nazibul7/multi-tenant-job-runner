@@ -9,6 +9,7 @@ import (
 	"github.com/nazibul7/multi-tenant-job-runner/internal/service"
 	scheduler "github.com/nazibul7/multi-tenant-job-runner/internal/sheduler"
 	"github.com/nazibul7/multi-tenant-job-runner/internal/store"
+	"github.com/nazibul7/multi-tenant-job-runner/internal/worker"
 )
 
 func main() {
@@ -21,12 +22,16 @@ func main() {
 	tenantHandler := handler.NewTenantHandler(tenantStore, tenantSerice)
 	jobHandler := handler.NewJobHandler(jobService)
 
-	scheduler := scheduler.NewScheduler(tenantStore, jobStore)
+	schedulerInstance := scheduler.NewScheduler(tenantStore, jobStore)
+
+	workerPool := worker.NewPool(5, schedulerInstance.Jobs(), jobStore, schedulerInstance)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go scheduler.Run(ctx)
+	go schedulerInstance.Run(ctx)
+
+	go workerPool.Run(ctx)
 
 	mux := http.NewServeMux()
 
