@@ -12,7 +12,6 @@ import (
 	"github.com/nazibul7/multi-tenant-job-runner/internal/tenant"
 )
 
-
 type TenantHandler struct {
 	store   *store.TenantStore
 	service *service.TenantService
@@ -77,7 +76,6 @@ func (h *TenantHandler) CreateTenant(
 	})
 }
 
-
 func (h *TenantHandler) GetUsage(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.PathValue("id")
 
@@ -90,7 +88,6 @@ func (h *TenantHandler) GetUsage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(usage)
 }
-
 
 func (h *TenantHandler) LiveView(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.PathValue("id")

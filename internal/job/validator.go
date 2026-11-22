@@ -28,7 +28,7 @@ func Validate(j Job) error {
 		if step == nil {
 			return ErrNilStep
 		}
-        
+
 		if step.ID == "" {
 			return ErrEmptyStepID
 		}
