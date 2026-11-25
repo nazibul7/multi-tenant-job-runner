@@ -15,9 +15,10 @@ import (
 func main() {
 	tenantStore := store.NewTenantStore()
 	jobStore := store.NewJobStore()
+	idempotencyStore := store.NewIdempotencyStore()
 
 	tenantSerice := service.NewTenantService(tenantStore, jobStore)
-	jobService := service.NewJobService(tenantStore, jobStore)
+	jobService := service.NewJobService(tenantStore, jobStore, idempotencyStore)
 
 	tenantHandler := handler.NewTenantHandler(tenantStore, tenantSerice)
 	jobHandler := handler.NewJobHandler(jobService)

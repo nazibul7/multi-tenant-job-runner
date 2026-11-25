@@ -28,6 +28,13 @@ func (h *JobHandler) SubmitJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	idempotencyKey := r.Header.Get("Idempotency-Key")
+
+	if idempotencyKey == "" {
+		http.Error(w, "Idempotency-Key header is required", http.StatusBadRequest)
+		return
+	}
+
 	var j job.Job
 
 	// Decode request body.
@@ -43,7 +50,7 @@ func (h *JobHandler) SubmitJob(w http.ResponseWriter, r *http.Request) {
 	j.TenantID = tenantID
 
 	// Submit job to service.
-	err := h.jobService.SubmitJob(tenantID, &j)
+	err := h.jobService.SubmitJob(tenantID, idempotencyKey, &j)
 	if err != nil {
 		switch {
 		case errors.Is(err, store.ErrTenantNotFound):
@@ -51,6 +58,9 @@ func (h *JobHandler) SubmitJob(w http.ResponseWriter, r *http.Request) {
 
 		case errors.Is(err, store.ErrJobExists):
 			http.Error(w, "job already exists", http.StatusConflict)
+
+		case errors.Is(err, service.ErrIdempotencyConflict):
+			http.Error(w, err.Error(), http.StatusConflict)
 
 		case errors.Is(err, job.ErrInvalidJob),
 			errors.Is(err, job.ErrEmptySteps),
